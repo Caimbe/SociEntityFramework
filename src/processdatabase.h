@@ -14,6 +14,8 @@ class ProcessDataBase
 public:
     ProcessDataBase(const string& urlDataBase);
     void start();
+    void createInterfaceHeader(vector<string> vecTables);
+    void createInterfaceCpp(vector<string> vecTables);
 };
 
 #endif // PROCESSDATABASE_H

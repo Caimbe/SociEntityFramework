@@ -5,18 +5,17 @@
 #include <boost/algorithm/string.hpp>
 using namespace soci;
 
+#define DIR_ENTITY "entity/"
+
 EntityCreator::EntityCreator(soci::session& db, string table, string tableSchema) : dataBase(db)
 {
     this->table = table;
     this->tableSchema = tableSchema;
-    className = table;
-    className[0] = toupper(className[0]);
-    for(size_t find = className.find("_"); find != string::npos; find=className.find("_"))
-    {
-        className.erase(find, 1);
-        className[find] = toupper(className[find]);
-    }
+    className = table2className(table);
+
     vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
+
+    boost::filesystem::create_directories(DIR_ENTITY);
     createHeader();
     createCpp();
 }
@@ -31,14 +30,15 @@ void EntityCreator::createHeader()
 
     file << geraDefinersOpen(className);
     file << INCLUDES_DEFAULTS;
-    insertIncludesRelations(file);
+    insertIncludesRelations(file, vecColumns);
     file << "\nusing namespace std;\n";
+    insertTypedefPointers(file);
     file << "\nclass " << className << endl << '{' << endl;
     insertDeclarationsAttribs(file);
-    file << endl;
+    file << "public:"<<endl;
+    insertDeclarationConstructors(file);
     insertDeclarationsGetsAndSets(file);
     file << "};\n" << endl;
-    insertTypedefPointers(file);
     file << geraDefinersClose(className);
 }
 
@@ -50,6 +50,7 @@ void EntityCreator::createCpp()
     ofstream file(DIR_ENTITY+fileName+".cpp");
 
     file << "#include \"" << fileName << ".h\"\n\n";
+    insertImplemetationConstructors(file);
     insertImplementationGetsAndSets(file);
     file << endl;
 }
@@ -63,14 +64,26 @@ void EntityCreator::insertDeclarationsAttribs(ofstream &file)
     }
 }
 
+void EntityCreator::insertDeclarationConstructors(ofstream &file)
+{
+    file << '\t'<<className<<"();\n";
+    file << '\t'<<className<<"(int id);\n";
+}
+
 void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
 {
     for(Column column: vecColumns)
     {
         column.var[0] = toupper(column.var[0]);
-        file << '\t' << column.type << " " << "get" << column.var << "();" << endl;
+        file << '\t' << column.type << " " << "get" << column.var << "() const;" << endl;
         file << '\t' << "void " << "set" << column.var << "("<<column.type<<" value);" << endl;
     }
+}
+
+void EntityCreator::insertImplemetationConstructors(ofstream &file)
+{
+    file << className <<"::"<<className<<"(){}\n";
+    file << className <<"::"<<className<<"(int id)\n{\nthis->id = id;\n}\n\n";
 }
 
 void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
@@ -79,7 +92,7 @@ void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
     {
         string varLow = column.var;
         column.var[0] = toupper(column.var[0]);
-        file << column.type << ' ' << className << "::" << "get" << column.var << "()" << endl;
+        file << column.type << ' ' << className << "::" << "get" << column.var << "() const" << endl;
         file << "{\n\treturn " << varLow << ";\n}\n";
         file << "void " << className << "::" << "set" << column.var << "("<<column.type<<" value)" << endl;
         file << "{\n\t" << varLow << " = value;\n}\n";
@@ -88,26 +101,6 @@ void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
 
 void EntityCreator::insertTypedefPointers(ofstream &file)
 {
-    file << "typedef shared_ptr<"<<className<<"> "<< className<<"Ptr;";
+    file << "\nclass "<<className<<";\ntypedef shared_ptr<"<<className<<"> "<< className<<"Ptr;\n";
 }
 
-void EntityCreator::insertIncludesRelations(ofstream &file)
-{
-    for(Column column: vecColumns)
-    {
-        if(column.relation.size())
-            file << "#include \"" << column.relation << ".h\"\n";
-    }
-}
-
-string EntityCreator::geraDefinersOpen(string className)
-{
-    boost::algorithm::to_upper(className);
-    return "#ifndef "+className+"_H\n#define "+className+"_H\n\n";
-}
-
-string EntityCreator::geraDefinersClose(string className)
-{
-    boost::algorithm::to_upper(className);
-    return "\n\n#endif // "+className+"_H\n";
-}

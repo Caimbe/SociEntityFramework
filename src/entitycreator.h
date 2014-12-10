@@ -19,13 +19,12 @@ public:
     EntityCreator(soci::session& dataBase, string table, string tableSchema);
     void createHeader();
     void createCpp();
-    void insertIncludesRelations(ofstream& file);
     void insertDeclarationsAttribs(ofstream& file);
+    void insertDeclarationConstructors(ofstream& file);
     void insertDeclarationsGetsAndSets(ofstream& file);
+    void insertImplemetationConstructors(ofstream& file);
     void insertImplementationGetsAndSets(ofstream& file);
     void insertTypedefPointers(ofstream& file);
-    string geraDefinersOpen(string className);
-    string geraDefinersClose(string className);
 };
 
 #endif // ENTITYCREATOR_H
