@@ -36,10 +36,10 @@ void RepositoryCreator::createHeader()
     file << "\tsoci::session& dataBase;\n";
     file << "public:\n";
     insertDeclarationConstructor(file);
-    file << "\tvoid insert("<< entity <<"& "<< entityLower << ");\n";
+    file << "\tint insert(const "<<entity <<"& "<< entityLower << ");\n";
     file << '\t' << entity << "Ptr select(int id);\n";
-    file << "\tvoid update("<< entity <<"& "<< entityLower << ");\n";
-    file << "\tvoid remove("<< entity <<"& "<< entityLower << ");\n";
+    file << "\tvoid update(const "<< entity <<"& "<< entityLower << ");\n";
+    file << "\tvoid remove(const "<< entity <<"& "<< entityLower << ");\n";
     file << "};\n\n";
     insertObjectRelationalMapping(file);
     file << geraDefinersClose(className);
@@ -48,7 +48,8 @@ void RepositoryCreator::createHeader()
 void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
 {
     file << "namespace soci\n{\ntemplate<>\nstruct type_conversion<"<<entity<<">\n{\ntypedef values base_type;\n";
-    file << "\tstatic void from_base(values const & v, indicator& ind, "<<entity<<" & p)\n\t{\n";
+    file << "\ttemplate<class T>";
+    file << "\tstatic void from_base(const T& v, const indicator& ind, "<<entity<<" & p)\n\t{\n";
     for(Column coluna: vecColumns)
     {
         string asColumn = entity+'_'+coluna.var;
@@ -69,6 +70,8 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         if(coluna.relation.size()){
             file << "\t\tif( p.get"<<coluna.var<<"() )\n";
             file << "\t\t\tv.set( \""<<asColumn<<"\", p.get"<<coluna.var<<"()->getId() );\n";
+            file << "\t\telse\n";
+            file << "\t\t\tv.set( \""<<asColumn<<"\", NULL, i_null);\n";
         }else{
             string cast;
             if(coluna.type == "float")
@@ -112,38 +115,51 @@ void RepositoryCreator::insertImplementationSelect(ofstream &file)
         else
             file << ", " << colunaNome << " as " << entity<<'_'<<vecColumns[i].var;
     }
-    file << " from "<<table<<"\", into(*"<<entityLower<<");\n";
+    file << " from "<<table<<" WHERE id=:id\", into(*"<<entityLower<<"), use(id);\n";
+    file << "\tif(!dataBase.got_data())\n\t\t"<<entityLower<<".reset();\n";
     file << "\treturn "<<entityLower<<";\n";
     file << "}\n\n";
 }
 
 void RepositoryCreator::insertImplementationUpdate(ofstream &file)
 {
-    file << "void "<<className<<"::update("<< entity <<"& "<< entityLower << ")\n{\n";
+    file << "void "<<className<<"::update(const "<< entity <<"& "<< entityLower << ")\n{\n";
     file << "\tdataBase << \"update "<<table<<" set ";
+    bool first=true;
     for(int i=0; i<vecColumns.size(); i++){
+        if(vecColumns[i].var == "id")
+            continue;
+
+        string columName = vecColumns[i].var;
+        if(vecColumns[i].relation.size())
+            columName+="_id";
         string asColumn = entity+'_'+vecColumns[i].var;
-        if(i==0)
-            file << vecColumns[i].var << "=:"<<asColumn;
+        if(first)
+            file << columName << "=:"<<asColumn;
         else
-            file << ", "<<vecColumns[i].var << "=:"<<asColumn;
+            file << ", "<< columName << "=:"<<asColumn;
+        first=false;
     }
-    file << " WHERE id=:"<<entity<<".id\", use("<<entityLower<<");\n";
+    file << " WHERE id=\"<<"<<entityLower<<".getId(), use("<<entityLower<<");\n";
     file << "}\n\n";
 }
 
 void RepositoryCreator::insertImplementationInsert(ofstream &file)
 {
-    file << "void "<<className<<"::insert("<< entity <<"& "<< entityLower << ")\n{\n";
+    file << "int "<<className<<"::insert(const "<< entity <<"& "<< entityLower << ")\n{\n";
     file << "\tdataBase << \"insert into "<<table<<'(';
     bool first=true;
     for(int i=0; i<vecColumns.size(); i++){
+        string colunaNome = vecColumns[i].var ;
+        if(vecColumns[i].relation.size())
+            colunaNome+="_id";
+
         if(vecColumns[i].var == "id")
             continue;
-        if(first)
-            file << vecColumns[i].var;
-        else
-            file << ", " << vecColumns[i].var;
+        if(!first)
+            file << ", ";
+        file << colunaNome;
+
         first=false;
     }
     file << ")\\\nvalues(";
@@ -160,13 +176,14 @@ void RepositoryCreator::insertImplementationInsert(ofstream &file)
         first=false;
     }
     file << ")\", use("<<entityLower<<");\n";
+    file << "\tint id=0;\n\tdataBase << \"SELECT LAST_INSERT_ID()\", soci::into(id);\n\treturn id;\n";
     file << "}\n\n";
 }
 
 void RepositoryCreator::insertImplementationRemove(ofstream &file)
 {
-    file << "void "<<className<<"::remove("<< entity <<"& "<< entityLower << ")\n{\n";
-    file << "\tdataBase << \"DELETE from "<<table<<" WHERE id=" << entityLower<<".getId();\";\n";
+    file << "void "<<className<<"::remove(const "<< entity <<"& "<< entityLower << ")\n{\n";
+    file << "\tdataBase << \"DELETE from "<<table<<" WHERE id=\"<< "<<entityLower<<".getId();\n";
     file << "}\n\n";
 }
 
