@@ -24,7 +24,7 @@ void ProcessDataBase::start()
     {
         cout << "processing table: " << table << endl;
         EntityCreator(dataBase, table, tableSchema);
-        RepositoryCreator(table, tableSchema, getColumns( getColumnsDB(table, dataBase, tableSchema) ));
+        RepositoryCreator(table, tableSchema, getColumns( getColumnsDB(table, dataBase, tableSchema) ), dataBase);
         vecTables.push_back(table);
     }
     createInterfaceHeader(vecTables);
@@ -48,6 +48,7 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
     }
     file << "public:\n\tRepository(std::string connectStringDataBase);\n\n";
     file << "\ttemplate<class T> T select(int id);\n";
+    file << "\ttemplate<class T> T select(const string& where=\"\");\n";
     file << "\ttemplate<class T> int insert(const T& obj);\n";
     file << "\ttemplate<class T> void update(const T& obj);\n";
     file << "\ttemplate<class T> void remove(const T& obj);\n";
@@ -74,6 +75,8 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
     {
         file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository::select(int id)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(id);\n}\n";
+        file << "template<> "<<table2className(table)<<"List Repository::select(const string& where)\n{\n\t";
+        file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(where);\n}\n";
 
         file << "template<> int Repository::insert(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".insert(obj);\n}\n";

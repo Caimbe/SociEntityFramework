@@ -102,5 +102,6 @@ void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
 void EntityCreator::insertTypedefPointers(ofstream &file)
 {
     file << "\nclass "<<className<<";\ntypedef shared_ptr<"<<className<<"> "<< className<<"Ptr;\n";
+    file << "typedef vector<"<<className<<"Ptr> "<<className<<"List;\n";
 }
 
