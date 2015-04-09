@@ -15,6 +15,7 @@ struct Column
     string type;
     string var;
     string relation;
+    string key;
 };
 
 inline void insertIncludesRelations(ofstream &file, vector<Column>& vecColumns, string sufixFile = "", string dir="")
@@ -68,7 +69,7 @@ inline string typeDb2Cpp(string typeDB)
 
 inline soci::rowset<soci::row> getColumnsDB(string &table, soci::session& dataBase, string tableSchema)
 {
-    soci::rowset<soci::row> columns = dataBase.prepare << "SELECT cols.DATA_TYPE, cols.COLUMN_NAME, refs.REFERENCED_TABLE_NAME\
+    soci::rowset<soci::row> columns = dataBase.prepare << "SELECT cols.DATA_TYPE, cols.COLUMN_NAME, refs.REFERENCED_TABLE_NAME, cols.COLUMN_KEY\
                                               FROM INFORMATION_SCHEMA.COLUMNS as cols\
                                               LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS refs\
                                               ON refs.TABLE_SCHEMA=cols.TABLE_SCHEMA\
@@ -86,12 +87,14 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
     string tipo;
     string var;
     string relation;
+    string key;
     size_t fid;
     for(soci::row& column: columnsDb)
     {
         tipo = typeDb2Cpp( column.get<string>(0) );
         var = column.get<string>(1);
-        relation = column.get<string>(2, "");
+        relation = column.get<string>(2, "");        
+        key = column.get<string>(3, "");
         if(relation.size()){
             fid = var.rfind("_id");
             fid = fid==string::npos ? var.rfind("Id"):fid;
@@ -102,7 +105,7 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
             tipo[0] = toupper(tipo[0]);
             tipo += "Ptr";
         }
-        vecColumns.push_back( {tipo, var, relation} );
+        vecColumns.push_back( {tipo, var, relation, key} );
     }
     return vecColumns;
 }
