@@ -8,7 +8,7 @@
 #include <boost/algorithm/string.hpp>
 using namespace std;
 
-#define INCLUDES_DEFAULTS "#include <iostream>\n#include <memory>\n"
+#define INCLUDES_DEFAULTS "#include <iostream>\n#include <memory>\n#include <vector>\n"
 
 struct Column
 {

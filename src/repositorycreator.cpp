@@ -2,7 +2,7 @@
 #include "boost/filesystem.hpp"
 
 
-RepositoryCreator::RepositoryCreator(string &table, string &tableSchema, vector<Column> vecColumns)
+RepositoryCreator::RepositoryCreator(string &table, string &tableSchema, vector<Column> vecColumns, soci::session& db) : dataBase(db)
 {
     this->table = table;
     this->tableSchema = tableSchema;
@@ -38,6 +38,7 @@ void RepositoryCreator::createHeader()
     insertDeclarationConstructor(file);
     file << "\tint insert(const "<<entity <<"& "<< entityLower << ");\n";
     file << '\t' << entity << "Ptr select(int id);\n";
+    file << '\t' << entity << "List select(const string& where=\"\");\n";
     file << "\tvoid update(const "<< entity <<"& "<< entityLower << ");\n";
     file << "\tvoid remove(const "<< entity <<"& "<< entityLower << ");\n";
     file << "};\n\n";
@@ -57,7 +58,8 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         file << "\t\tif (v.get_indicator(\""<<asColumn<<"\") != i_null){\n";
         if(coluna.relation.size()){
             coluna.relation[0] = toupper(coluna.relation[0]);
-            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.get<int>(\""<<asColumn<<"\")) ) );\n\t\t}\n";
+            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.get<int>(\""<<asColumn<<"\")) ) );\n";
+            file << "\t\t\ttype_conversion<"<<coluna.relation<<">::from_base(v, i_ok, *p.get"<<coluna.var<<"() );\n\t\t}\n";
         }else
             file << "\t\t\tp.set"<<coluna.var<<"( v.get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
     }
@@ -103,21 +105,31 @@ void RepositoryCreator::createCpp()
 void RepositoryCreator::insertImplementationSelect(ofstream &file)
 {
     file << entity << "Ptr " << className <<"::select(int id)\n{\n";
+    file << "soci::row row;\n";
     file << '\t' << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
-    file << "\tdataBase << \"select ";
-    for(int i=0; i<vecColumns.size(); i++){
-        string colunaNome = vecColumns[i].var ;
-        if(vecColumns[i].relation.size())
-            colunaNome+="_id";
-
-        if(i==0)
-            file << colunaNome << " as " << entity<<'_'<<vecColumns[i].var;
-        else
-            file << ", " << colunaNome << " as " << entity<<'_'<<vecColumns[i].var;
-    }
-    file << " from "<<table<<" WHERE id=:id\", into(*"<<entityLower<<"), use(id);\n";
+    file << "\tdataBase << \"SELECT ";
+    insertColumnsToSelectOfRelation(file, table);
+    file << " \\\n\tFROM "<<table;
+    insertLeftJoinsOfRelation(file, table);
+    file <<" \\\n\tWHERE "<<table<<".id=:id\", into(row), use(id);\n";
     file << "\tif(!dataBase.got_data())\n\t\t"<<entityLower<<".reset();\n";
+    file << "\telse\n\t\ttype_conversion<"<<entity<<">::from_base(row, i_ok, *"<<entityLower<<");\n";
     file << "\treturn "<<entityLower<<";\n";
+    file << "}\n";
+
+    file << entity << "List " << className <<"::select(const string& where)\n{\n";
+    file << "soci::rowset<row> rs = ";
+    file << "\tdataBase.prepare << \"SELECT ";
+    insertColumnsToSelectOfRelation(file, table);
+    file << " \\\n\tFROM "<<table;
+    insertLeftJoinsOfRelation(file, table);
+    file << "\" \\\n\t<< (where.size()?\"WHERE \"+where:\"\");\n";
+    file << '\t' << entity<<"List "<<entityLower<<"List;\n";
+    file << "\tfor(row& r: rs)\n\t{\n";
+    file << '\t' << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
+    file << "\t\ttype_conversion<"<<entity<<">::from_base(r, i_ok, *"<<entityLower<<");\n";
+    file << "\t\t"<<entityLower<<"List.push_back("<<entityLower<<");\n\t}\n";
+    file << "\treturn "<<entityLower<<"List;\n";
     file << "}\n\n";
 }
 
@@ -195,5 +207,36 @@ void RepositoryCreator::insertDeclarationConstructor(ofstream &file)
 void RepositoryCreator::insertImplementationConstructor(ofstream &file)
 {
     file << className << "::" << className<<"(soci::session& db) : dataBase(db)\n{\n}\n\n";
+}
+
+void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& table, bool virgula)
+{
+    string entity = table2className(table);
+    vector<Column> colunas = getColumns(getColumnsDB(table, dataBase, tableSchema));
+    for(Column& coluna: colunas)
+    {
+        string colunaNome = table+'.'+coluna.var ;
+        if(coluna.relation.size()){
+            colunaNome+="_id";
+            if(table != coluna.relation)
+                insertColumnsToSelectOfRelation(file, coluna.relation, true);
+        }
+        file << (virgula?", ":" ") << colunaNome << " as " << entity<<'_'<<coluna.var;
+
+        virgula=true;
+    }
+}
+
+void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table)
+{
+    vector<Column> vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
+    for(int i=0; i<vecColumns.size(); i++){
+        if(vecColumns[i].relation.size()){
+            if(table != vecColumns[i].relation){
+                file << " \\\n\tLEFT OUTER JOIN "<<vecColumns[i].relation<<" ON("<<table<<'.'<<vecColumns[i].relation<<"_id="<<vecColumns[i].relation<<".id)";
+                insertLeftJoinsOfRelation(file, vecColumns[i].relation);
+            }
+        }
+    }
 }
 

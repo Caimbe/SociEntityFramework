@@ -13,9 +13,10 @@ class RepositoryCreator
     string tableSchema;
     string entity;
     string entityLower;
-    vector<Column> vecColumns;
+    vector<Column> vecColumns;    
+    soci::session& dataBase;
 public:
-    RepositoryCreator(string& table, string& tableSchema, vector<Column> vecColumns);
+    RepositoryCreator(string& table, string& tableSchema, vector<Column> vecColumns, soci::session& dataBase);
     void createHeader();
     void insertObjectRelationalMapping(ofstream& file);
     void createCpp();
@@ -25,6 +26,8 @@ public:
     void insertImplementationRemove(ofstream& file);
     void insertDeclarationConstructor(ofstream& file);
     void insertImplementationConstructor(ofstream& file);
+    void insertColumnsToSelectOfRelation(ofstream& file, string& table, bool virgula=false);
+    void insertLeftJoinsOfRelation(ofstream& file, string table);
 };
 
 #endif // REPOSITORYCREATOR_H
