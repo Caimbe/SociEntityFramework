@@ -37,7 +37,9 @@ void RepositoryCreator::createHeader()
     file << "public:\n";
     insertDeclarationConstructor(file);
     file << "\tint insert(const "<<entity <<"& "<< entityLower << ");\n";
+#ifdef SELECT_UNICO
     file << '\t' << entity << "Ptr select(int id);\n";
+#endif
     file << '\t' << entity << "List select(const string& where=\"\");\n";
     file << "\tvoid update(const "<< entity <<"& "<< entityLower << ");\n";
     file << "\tvoid remove(const "<< entity <<"& "<< entityLower << ");\n";
@@ -104,6 +106,7 @@ void RepositoryCreator::createCpp()
 
 void RepositoryCreator::insertImplementationSelect(ofstream &file)
 {
+#ifdef SELECT_UNICO
     file << entity << "Ptr " << className <<"::select(int id)\n{\n";
     file << "soci::row row;\n";
     file << '\t' << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
@@ -116,6 +119,7 @@ void RepositoryCreator::insertImplementationSelect(ofstream &file)
     file << "\telse\n\t\ttype_conversion<"<<entity<<">::from_base(row, i_ok, *"<<entityLower<<");\n";
     file << "\treturn "<<entityLower<<";\n";
     file << "}\n";
+#endif
 
     file << entity << "List " << className <<"::select(const string& where)\n{\n";
     file << "soci::rowset<row> rs = ";
@@ -126,7 +130,7 @@ void RepositoryCreator::insertImplementationSelect(ofstream &file)
     file << "\" \\\n\t<< (where.size()?\"WHERE \"+where:\"\");\n";
     file << '\t' << entity<<"List "<<entityLower<<"List;\n";
     file << "\tfor(row& r: rs)\n\t{\n";
-    file << '\t' << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
+    file << "\t\t" << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
     file << "\t\ttype_conversion<"<<entity<<">::from_base(r, i_ok, *"<<entityLower<<");\n";
     file << "\t\t"<<entityLower<<"List.push_back("<<entityLower<<");\n\t}\n";
     file << "\treturn "<<entityLower<<"List;\n";
@@ -152,7 +156,16 @@ void RepositoryCreator::insertImplementationUpdate(ofstream &file)
             file << ", "<< columName << "=:"<<asColumn;
         first=false;
     }
-    file << " WHERE id=\"<<"<<entityLower<<".getId(), use("<<entityLower<<");\n";
+    file << " WHERE ";
+    bool virgula = false;
+    for(Column column: vecColumns)
+    {
+        if(column.key.size()){
+            file << (virgula?" AND \" << ":"") << column.var << "=\"<<" << entityLower << ".get" << table2className(column.var) << "()";
+            virgula=true;
+        }
+    }
+    file << ", use("<<entityLower<<");\n";
     file << "}\n\n";
 }
 
@@ -195,8 +208,16 @@ void RepositoryCreator::insertImplementationInsert(ofstream &file)
 void RepositoryCreator::insertImplementationRemove(ofstream &file)
 {
     file << "void "<<className<<"::remove(const "<< entity <<"& "<< entityLower << ")\n{\n";
-    file << "\tdataBase << \"DELETE from "<<table<<" WHERE id=\"<< "<<entityLower<<".getId();\n";
-    file << "}\n\n";
+    file << "\tdataBase << \"DELETE from "<<table<<" WHERE ";
+    bool virgula = false;
+    for(Column column: vecColumns)
+    {
+        if(column.key.size()){
+            file << (virgula?" AND \" << ":"") << column.var << "=\"<<" << entityLower << ".get" << table2className(column.var) << "()";
+            virgula=true;
+        }
+    }
+    file << ";\n}\n\n";
 }
 
 void RepositoryCreator::insertDeclarationConstructor(ofstream &file)

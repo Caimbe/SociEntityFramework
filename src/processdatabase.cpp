@@ -46,8 +46,11 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
     {
         file << '\t'<<table2className(table)<<"Repository "<<boost::algorithm::to_lower_copy(table2className(table))<<";\n";
     }
-    file << "public:\n\tRepository(std::string connectStringDataBase);\n\n";
+    file << "public:\n\tRepository();\n\n";
+    file << "\tvoid open(std::string& connectStringDataBase);\n";
+#ifdef SELECT_UNICO
     file << "\ttemplate<class T> T select(int id);\n";
+#endif
     file << "\ttemplate<class T> T select(const string& where=\"\");\n";
     file << "\ttemplate<class T> int insert(const T& obj);\n";
     file << "\ttemplate<class T> void update(const T& obj);\n";
@@ -59,7 +62,7 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
 void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
 {
     ofstream file(DIR_REPOSITORY"repository.cpp");
-    file << "#include \"repository.h\"\nRepository::Repository(std::string connectStringDataBase) :";
+    file << "#include \"repository.h\"\nRepository::Repository() :";
     bool first=true;
     for(string table: vecTables)
     {
@@ -69,12 +72,18 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
             file << ',' << boost::algorithm::to_lower_copy(table2className(table))<<"(dataBase) ";
         first = false;
     }
-    file <<"\n{\n\tdataBase.open(connectStringDataBase);\n}\n";
+    file <<"\n{}\n";
+
+    file << "void Repository::open(std::string& connectStringDataBase)\n{\n";
+    file << "\tif(connectStringDataBase.size())\n";
+    file << "\t\tdataBase.open(connectStringDataBase);\n}\n";
 
     for(string table: vecTables)
     {
+#ifdef SELECT_UNICO
         file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository::select(int id)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(id);\n}\n";
+#endif
         file << "template<> "<<table2className(table)<<"List Repository::select(const string& where)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(where);\n}\n";
 
