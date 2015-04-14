@@ -60,10 +60,10 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         file << "\t\tif (v.get_indicator(\""<<asColumn<<"\") != i_null){\n";
         if(coluna.relation.size()){
             coluna.relation[0] = toupper(coluna.relation[0]);
-            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.get<int>(\""<<asColumn<<"\")) ) );\n";
+            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.get<"<<coluna.type<<">(\""<<asColumn<<"\")) ) );\n";
             file << "\t\t\ttype_conversion<"<<coluna.relation<<">::from_base(v, i_ok, *p.get"<<coluna.var<<"() );\n\t\t}\n";
         }else
-            file << "\t\t\tp.set"<<coluna.var<<"( v.get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
+            file << "\t\t\tp.set"<<coluna.var<<"( v.template get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
     }
     file << "\t}\n";
     file << "\tstatic void to_base(const "<<entity<<" & p, values & v, indicator & ind)\n\t{\n";
