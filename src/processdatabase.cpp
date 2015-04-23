@@ -74,9 +74,12 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
     }
     file <<"\n{}\n";
 
-    file << "void Repository::open(std::string& connectStringDataBase)\n{\n";
-    file << "\tif(connectStringDataBase.size())\n";
-    file << "\t\tdataBase.open(connectStringDataBase);\n}\n";
+    file << "void Repository::open(std::string& connectStringDataBase)\n{\n"
+            "\tif(connectStringDataBase.size())\n"
+            "\t\tdataBase.open(connectStringDataBase);\n"
+            "\telse\n"
+            "\t\tthrow runtime_error(\"connectStringDataBase is EMPTY, info a url to connect in data base\");\n"
+            "}\n";
 
     for(string table: vecTables)
     {
