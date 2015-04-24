@@ -60,7 +60,10 @@ void EntityCreator::insertDeclarationsAttribs(ofstream &file)
 
     for(Column column: vecColumns)
     {
-        file << '\t' << column.type << " " << column.var << ';' << endl;
+        file << '\t' << column.type << " " << column.var << ';';
+        if(column.key.size())
+            file << " //key: "<<column.key;
+        file << endl;
     }
 }
 
