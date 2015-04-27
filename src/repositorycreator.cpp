@@ -122,12 +122,12 @@ void RepositoryCreator::insertImplementationSelect(ofstream &file)
 #endif
 
     file << entity << "List " << className <<"::select(const string& where)\n{\n";
-    file << "soci::rowset<row> rs = ";
+    file << "\tsoci::rowset<row> rs = ";
     file << "\tdataBase.prepare << \"SELECT ";
     insertColumnsToSelectOfRelation(file, table);
-    file << " \\\n\tFROM "<<table;
+    file << " \"\n\t\" FROM "<<table;
     insertLeftJoinsOfRelation(file, table);
-    file << "\" \\\n\t<< (where.size()?\"WHERE \"+where:\"\");\n";
+    file << "\" \n\t<< (where.size()?\" WHERE \"+where:\"\");\n";
     file << '\t' << entity<<"List "<<entityLower<<"List;\n";
     file << "\tfor(row& r: rs)\n\t{\n";
     file << "\t\t" << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
