@@ -54,6 +54,7 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
     file << "\ttemplate<class T> T select(const string& where=\"\");\n";
     file << "\ttemplate<class T> int insert(const T& obj);\n";
     file << "\ttemplate<class T> void update(const T& obj);\n";
+    file << "\ttemplate<class T> void update(const T& oldObj, const T& newObj);\n";
     file << "\ttemplate<class T> void remove(const T& obj);\n";
     file << "\n};\n\n";
     file << "#endif // REPOSITORY_H\n";
@@ -95,6 +96,9 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
 
         file << "template<> void Repository::update(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<boost::algorithm::to_lower_copy(table2className(table)) << ".update(obj);\n}\n";
+
+        file << "template<> void Repository::update(const "<<table2className(table)<<"& oldObj, const "<<table2className(table)<<"& newObj)\n{\n\t";
+        file <<boost::algorithm::to_lower_copy(table2className(table)) << ".update(oldObj, newObj);\n}\n";
 
         file << "template<> void Repository::remove(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<boost::algorithm::to_lower_copy(table2className(table)) << ".remove(obj);\n}\n";

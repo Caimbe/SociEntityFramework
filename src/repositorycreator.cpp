@@ -42,6 +42,7 @@ void RepositoryCreator::createHeader()
 #endif
     file << '\t' << entity << "List select(const string& where=\"\");\n";
     file << "\tvoid update(const "<< entity <<"& "<< entityLower << ");\n";
+    file << "\tvoid update(const "<< entity <<"& oldObj, const "<< entity <<"& newObj);\n";
     file << "\tvoid remove(const "<< entity <<"& "<< entityLower << ");\n";
     file << "};\n\n";
     insertObjectRelationalMapping(file);
@@ -102,6 +103,7 @@ void RepositoryCreator::createCpp()
     insertImplementationInsert(file);
     insertImplementationRemove(file);
     insertImplementationUpdate(file);
+    insertImplementationUpdate2(file);
 }
 
 void RepositoryCreator::insertImplementationSelect(ofstream &file)
@@ -161,11 +163,43 @@ void RepositoryCreator::insertImplementationUpdate(ofstream &file)
     for(Column column: vecColumns)
     {
         if(column.key.size()){
-            file << (virgula?" AND \" << ":"") << column.var << "=\"<<" << entityLower << ".get" << table2className(column.var) << "()";
+            file << (virgula?" AND \" << ":"") << column.var << "='\"<<" << entityLower << ".get" << table2className(column.var) << "()<<'\\''";
             virgula=true;
         }
     }
     file << ", use("<<entityLower<<");\n";
+    file << "}\n\n";
+}
+
+void RepositoryCreator::insertImplementationUpdate2(ofstream &file)
+{
+    file << "void "<<className<<"::update(const "<< entity <<"& oldObj, const "<< entity <<"& newObj)\n{\n";
+    file << "\tdataBase << \"update "<<table<<" set ";
+    bool first=true;
+    for(int i=0; i<vecColumns.size(); i++){
+        if(vecColumns[i].var == "id")
+            continue;
+
+        string columName = vecColumns[i].var;
+        if(vecColumns[i].relation.size())
+            columName+="_id";
+        string asColumn = entity+'_'+vecColumns[i].var;
+        if(first)
+            file << columName << "=:"<<asColumn;
+        else
+            file << ", "<< columName << "=:"<<asColumn;
+        first=false;
+    }
+    file << " WHERE ";
+    bool virgula = false;
+    for(Column column: vecColumns)
+    {
+        if(column.key.size()){
+            file << (virgula?" AND \" << ":"") << column.var << "='\"<<oldObj.get" << table2className(column.var) << "()<<'\\''";
+            virgula=true;
+        }
+    }
+    file << ", use(newObj);\n";
     file << "}\n\n";
 }
 
@@ -213,7 +247,7 @@ void RepositoryCreator::insertImplementationRemove(ofstream &file)
     for(Column column: vecColumns)
     {
         if(column.key.size()){
-            file << (virgula?" AND \" << ":"") << column.var << "=\"<<" << entityLower << ".get" << table2className(column.var) << "()";
+            file << (virgula?" AND \" << ":"") << column.var << "='\"<<" << entityLower << ".get" << table2className(column.var) << "()<<'\\''";
             virgula=true;
         }
     }

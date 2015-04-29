@@ -22,6 +22,7 @@ public:
     void createCpp();
     void insertImplementationSelect(ofstream& file);
     void insertImplementationUpdate(ofstream& file);
+    void insertImplementationUpdate2(ofstream& file);
     void insertImplementationInsert(ofstream& file);
     void insertImplementationRemove(ofstream& file);
     void insertDeclarationConstructor(ofstream& file);

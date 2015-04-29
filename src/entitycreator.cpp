@@ -79,7 +79,8 @@ void EntityCreator::insertDeclarationConstructors(ofstream &file)
             virgula=true;
         }
     }
-    file << ");\n";
+    file << ");\n"
+            "\tvoid init();\n";
 }
 
 void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
@@ -94,7 +95,9 @@ void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
 
 void EntityCreator::insertImplemetationConstructors(ofstream &file)
 {
-    file << className <<"::"<<className<<"(){}\n";
+    file << className <<"::"<<className<<"(){\n"
+            "\tinit();\n"
+            "}\n";
     file << className <<"::"<<className<<"(";
     bool virgula = false;
     for(Column column: vecColumns)
@@ -104,13 +107,19 @@ void EntityCreator::insertImplemetationConstructors(ofstream &file)
             virgula=true;
         }
     }
-    file << ")\n{\n";
+    file << ")\n{\n"
+            "\tinit();\n";
     for(Column column: vecColumns)
     {
         if(column.key.size())
             file << "\tthis->"<<column.var <<" = "<< column.var<<";\n";
     }
-    file << "}\n\n";
+    file << "}\n\n"
+            "void "<<className <<"::"<<"init()\n{\n";
+    for(Column column: vecColumns)
+        if(column.type == "tm")
+            file <<'\t'<< column.var<<" = {0};\n";
+    file << "}\n";
 }
 
 void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
