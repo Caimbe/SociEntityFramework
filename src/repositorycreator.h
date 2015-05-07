@@ -2,6 +2,7 @@
 #define REPOSITORYCREATOR_H
 
 #include "soci/soci.h"
+#include <set>
 #include "util.hpp"
 
 #define DIR_REPOSITORY "repository/"
@@ -27,8 +28,9 @@ public:
     void insertImplementationRemove(ofstream& file);
     void insertDeclarationConstructor(ofstream& file);
     void insertImplementationConstructor(ofstream& file);
-    void insertColumnsToSelectOfRelation(ofstream& file, string& table, bool virgula=false);
-    void insertLeftJoinsOfRelation(ofstream& file, string table);
+    void insertColumnsToSelectOfRelation(ofstream& file, string& table, set<string>& relationsInserted, bool virgula=false);
+    void insertLeftJoinsOfRelation(ofstream& file, string table, set<string>& relationsInserted);
+    string getIdFuncRelation(Column& column);
 };
 
 #endif // REPOSITORYCREATOR_H

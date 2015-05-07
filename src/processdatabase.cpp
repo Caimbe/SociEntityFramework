@@ -6,6 +6,7 @@
 #include "util.hpp"
 #include "entitycreator.h"
 #include "repositorycreator.h"
+#include "entity.h"
 
 ProcessDataBase::ProcessDataBase(const string& urlDataBase)
 {
@@ -18,14 +19,22 @@ ProcessDataBase::ProcessDataBase(const string& urlDataBase)
 
 void ProcessDataBase::start()
 {
+    vector<Entity> vecEntity;
     vector<string> vecTables;
     rowset<string> tables = dataBase.prepare << "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='"+tableSchema+"'";
     for(string table: tables)
     {
-        cout << "processing table: " << table << endl;
-        EntityCreator(dataBase, table, tableSchema);
-        RepositoryCreator(table, tableSchema, getColumns( getColumnsDB(table, dataBase, tableSchema) ), dataBase);
-        vecTables.push_back(table);
+        Entity entity;
+        entity.name = table;
+        entity.vecColumn = getColumns( getColumnsDB(table, dataBase, tableSchema) );
+        vecEntity.push_back(entity);
+    }
+    for(Entity& entity: vecEntity)
+    {
+        cout << "processing table: " << entity.name << endl;
+        EntityCreator(dataBase, entity.name, tableSchema, vecEntity);
+        RepositoryCreator(entity.name, tableSchema, getColumns( getColumnsDB(entity.name, dataBase, tableSchema) ), dataBase);
+        vecTables.push_back(entity.name);
     }
     createInterfaceHeader(vecTables);
     createInterfaceCpp(vecTables);
@@ -48,9 +57,7 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
     }
     file << "public:\n\tRepository();\n\n";
     file << "\tvoid open(std::string& connectStringDataBase);\n";
-#ifdef SELECT_UNICO
-    file << "\ttemplate<class T> T select(int id);\n";
-#endif
+    file << "\ttemplate<class R, class T> R select(const T& obj);\n";
     file << "\ttemplate<class T> T select(const string& where=\"\");\n";
     file << "\ttemplate<class T> int insert(const T& obj);\n";
     file << "\ttemplate<class T> void update(const T& obj);\n";
@@ -84,10 +91,9 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
 
     for(string table: vecTables)
     {
-#ifdef SELECT_UNICO
-        file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository::select(int id)\n{\n\t";
-        file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(id);\n}\n";
-#endif
+        file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository::select(const "<<table2className(table)<<"& obj)\n{\n\t";
+        file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(obj);\n}\n";
+
         file << "template<> "<<table2className(table)<<"List Repository::select(const string& where)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(where);\n}\n";
 

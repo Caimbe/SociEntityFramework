@@ -15,8 +15,9 @@ class EntityCreator
     string className;
     soci::session& dataBase;
     vector<Column> vecColumns;
+    vector<Entity> vecEntity;
 public:
-    EntityCreator(soci::session& dataBase, string table, string tableSchema);
+    EntityCreator(soci::session& dataBase, string table, string tableSchema, vector<Entity>& vecEntity );
     void createHeader();
     void createCpp();
     void insertDeclarationsAttribs(ofstream& file);

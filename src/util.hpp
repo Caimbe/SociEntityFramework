@@ -6,17 +6,11 @@
 #include <soci/soci.h>
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
+#include "entity.h"
 using namespace std;
 
 #define INCLUDES_DEFAULTS "#include <iostream>\n#include <memory>\n#include <vector>\n"
 
-struct Column
-{
-    string type;
-    string var;
-    string relation;
-    string key;
-};
 
 inline void insertIncludesRelations(ofstream &file, vector<Column>& vecColumns, string sufixFile = "", string dir="")
 {
@@ -54,14 +48,14 @@ inline string table2className(string& table)
 
 inline string typeDb2Cpp(string typeDB)
 {
-    if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob")
+    if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob" || typeDB=="longtext")
         return "string";
     else if(typeDB == "timestamp")
         return "tm";
     else if(typeDB == "tinyint")
         return "bool";
-    else if(typeDB == "decimal")
-        return "float";
+    else if(typeDB == "decimal" || typeDB=="float")
+        return "double";
 
     return typeDB;
 }
@@ -84,15 +78,19 @@ inline soci::rowset<soci::row> getColumnsDB(string &table, soci::session& dataBa
 inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
 {
     vector<Column> vecColumns;
+    string tipoDb;
     string tipo;
     string var;
+    string nameDb;
     string relation;
     string key;
     size_t fid;
     for(soci::row& column: columnsDb)
     {
-        tipo = typeDb2Cpp( column.get<string>(0) );
+        tipoDb =  column.get<string>(0);
+        tipo = typeDb2Cpp( tipoDb );
         var = column.get<string>(1);
+        nameDb = var;
         relation = column.get<string>(2, "");        
         key = column.get<string>(3, "");
         if(relation.size()){
@@ -105,7 +103,7 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
             tipo[0] = toupper(tipo[0]);
             tipo += "Ptr";
         }
-        vecColumns.push_back( {tipo, var, relation, key} );
+        vecColumns.push_back( {tipo, tipoDb, var, relation, key, nameDb} );
     }
     return vecColumns;
 }

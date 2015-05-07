@@ -7,10 +7,11 @@ using namespace soci;
 
 #define DIR_ENTITY "entity/"
 
-EntityCreator::EntityCreator(soci::session& db, string table, string tableSchema) : dataBase(db)
+EntityCreator::EntityCreator(soci::session& db, string table, string tableSchema, vector<Entity>& vecEntity) : dataBase(db)
 {
     this->table = table;
     this->tableSchema = tableSchema;
+    this->vecEntity = vecEntity;
     className = table2className(table);
 
     vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
@@ -70,17 +71,23 @@ void EntityCreator::insertDeclarationsAttribs(ofstream &file)
 void EntityCreator::insertDeclarationConstructors(ofstream &file)
 {
     file << '\t'<<className<<"();\n";
-    file << '\t'<<className<<"(";
-    bool virgula = false;
+    bool isKeyPri = false;
     for(Column column: vecColumns)
-    {
-        if(column.key.size()){
-            file << (virgula?", ":"") << column.type << " " << column.var;
-            virgula=true;
+        if(column.key=="PRI")
+            isKeyPri=true;
+    if(isKeyPri){
+        file << '\t'<<className<<"(";
+        bool virgula = false;
+        for(Column column: vecColumns)
+        {
+            if(column.key=="PRI"){
+                file << (virgula?", ":"") << column.type << " " << column.var;
+                virgula=true;
+            }
         }
+        file << ");\n";
     }
-    file << ");\n"
-            "\tvoid init();\n";
+    file << "\tvoid init();\n";
 }
 
 void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
@@ -90,6 +97,16 @@ void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
         column.var[0] = toupper(column.var[0]);
         file << '\t' << column.type << " " << "get" << column.var << "() const;" << endl;
         file << '\t' << "void " << "set" << column.var << "("<<column.type<<" value);" << endl;
+        /*if(column.key.size()){
+            for(auto itE=vecEntity.begin(); itE!=vecEntity.end(); itE++){
+                if(itE->name==column.relation)
+                    for(auto itV=itE->vecColumn.begin();itV!=itE->vecColumn.end();itV++)
+                        if(itV->key == "PRI")
+                            file << '\t' << "void " << "set" << column.var << "("<<itV->type<<" value);" << endl;
+            }
+
+
+        }*/
     }
 }
 
@@ -98,24 +115,30 @@ void EntityCreator::insertImplemetationConstructors(ofstream &file)
     file << className <<"::"<<className<<"(){\n"
             "\tinit();\n"
             "}\n";
-    file << className <<"::"<<className<<"(";
-    bool virgula = false;
+    bool isKeyPri = false;
     for(Column column: vecColumns)
-    {
-        if(column.key.size()){
-            file << (virgula?", ":"") << column.type << " " << column.var;
-            virgula=true;
+        if(column.key=="PRI")
+            isKeyPri=true;
+    if(isKeyPri){
+        file << className <<"::"<<className<<"(";
+        bool virgula = false;
+        for(Column column: vecColumns)
+        {
+            if(column.key=="PRI"){
+                file << (virgula?", ":"") << column.type << " " << column.var;
+                virgula=true;
+            }
         }
+        file << ")\n{\n";
+        file << "\tinit();\n";
+        for(Column column: vecColumns)
+        {
+            if(column.key=="PRI")
+                file << "\tthis->"<<column.var <<" = "<< column.var<<";\n";
+        }
+        file << "}\n\n";
     }
-    file << ")\n{\n"
-            "\tinit();\n";
-    for(Column column: vecColumns)
-    {
-        if(column.key.size())
-            file << "\tthis->"<<column.var <<" = "<< column.var<<";\n";
-    }
-    file << "}\n\n"
-            "void "<<className <<"::"<<"init()\n{\n";
+    file << "void "<<className <<"::"<<"init()\n{\n";
     for(Column column: vecColumns)
         if(column.type == "tm")
             file <<'\t'<< column.var<<" = {0};\n";

@@ -1,6 +1,7 @@
 #include "repositorycreator.h"
-#include "boost/filesystem.hpp"
-
+#include "util.hpp"
+#include <set>
+#include <boost/filesystem.hpp>
 
 RepositoryCreator::RepositoryCreator(string &table, string &tableSchema, vector<Column> vecColumns, soci::session& db) : dataBase(db)
 {
@@ -37,9 +38,7 @@ void RepositoryCreator::createHeader()
     file << "public:\n";
     insertDeclarationConstructor(file);
     file << "\tint insert(const "<<entity <<"& "<< entityLower << ");\n";
-#ifdef SELECT_UNICO
-    file << '\t' << entity << "Ptr select(int id);\n";
-#endif
+    file << '\t' << entity << "Ptr select(const "<< entity <<"& "<< entityLower << ");\n";
     file << '\t' << entity << "List select(const string& where=\"\");\n";
     file << "\tvoid update(const "<< entity <<"& "<< entityLower << ");\n";
     file << "\tvoid update(const "<< entity <<"& oldObj, const "<< entity <<"& newObj);\n";
@@ -61,7 +60,7 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         file << "\t\tif (v.get_indicator(\""<<asColumn<<"\") != i_null){\n";
         if(coluna.relation.size()){
             coluna.relation[0] = toupper(coluna.relation[0]);
-            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.get<"<<coluna.type<<">(\""<<asColumn<<"\")) ) );\n";
+            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.template get<"<<coluna.typeDb<<">(\""<<asColumn<<"\")) ) );\n";
             file << "\t\t\ttype_conversion<"<<coluna.relation<<">::from_base(v, i_ok, *p.get"<<coluna.var<<"() );\n\t\t}\n";
         }else
             file << "\t\t\tp.set"<<coluna.var<<"( v.template get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
@@ -108,27 +107,40 @@ void RepositoryCreator::createCpp()
 
 void RepositoryCreator::insertImplementationSelect(ofstream &file)
 {
-#ifdef SELECT_UNICO
-    file << entity << "Ptr " << className <<"::select(int id)\n{\n";
-    file << "soci::row row;\n";
+    file << entity << "Ptr " << className <<"::select(const "<< entity <<"& obj)\n{\n";
+    file << "\tsoci::row row;\n";
     file << '\t' << entity<<"Ptr "<<entityLower<<"(new "<<entity<<");\n";
     file << "\tdataBase << \"SELECT ";
-    insertColumnsToSelectOfRelation(file, table);
-    file << " \\\n\tFROM "<<table;
-    insertLeftJoinsOfRelation(file, table);
-    file <<" \\\n\tWHERE "<<table<<".id=:id\", into(row), use(id);\n";
+    set<string> set;
+    insertColumnsToSelectOfRelation(file, table, set);
+    file << "\"\n\t\" FROM "<<table;
+    set.clear();
+    insertLeftJoinsOfRelation(file, table, set);
+    file <<" \"\n\t\"WHERE ";
+    bool virgula = false;
+    for(Column column: vecColumns)
+    {
+        if(column.key.size()){
+            if(virgula)
+                file << " AND ";
+            file << table <<'.'<<column.nameDb<<" = :"<<entity<<'_'<<column.var;
+            virgula=true;
+        }
+    }
+    file << "\", into(row), use(obj);\n";
     file << "\tif(!dataBase.got_data())\n\t\t"<<entityLower<<".reset();\n";
     file << "\telse\n\t\ttype_conversion<"<<entity<<">::from_base(row, i_ok, *"<<entityLower<<");\n";
     file << "\treturn "<<entityLower<<";\n";
     file << "}\n";
-#endif
 
     file << entity << "List " << className <<"::select(const string& where)\n{\n";
     file << "\tsoci::rowset<row> rs = ";
     file << "\tdataBase.prepare << \"SELECT ";
-    insertColumnsToSelectOfRelation(file, table);
+    set.clear();
+    insertColumnsToSelectOfRelation(file, table, set);
     file << " \"\n\t\" FROM "<<table;
-    insertLeftJoinsOfRelation(file, table);
+    set.clear();
+    insertLeftJoinsOfRelation(file, table, set);
     file << "\" \n\t<< (where.size()?\" WHERE \"+where:\"\");\n";
     file << '\t' << entity<<"List "<<entityLower<<"List;\n";
     file << "\tfor(row& r: rs)\n\t{\n";
@@ -163,11 +175,14 @@ void RepositoryCreator::insertImplementationUpdate(ofstream &file)
     for(Column column: vecColumns)
     {
         if(column.key.size()){
-            file << (virgula?" AND \" << ":"") << column.var << "='\"<<" << entityLower << ".get" << table2className(column.var) << "()<<'\\''";
+            string asColumn = entity+'_'+column.var;
+            if(virgula)
+                file << " AND ";
+            file << column.nameDb << "=:"<<asColumn;
             virgula=true;
         }
     }
-    file << ", use("<<entityLower<<");\n";
+    file << "\", use("<<entityLower<<");\n";
     file << "}\n\n";
 }
 
@@ -195,7 +210,9 @@ void RepositoryCreator::insertImplementationUpdate2(ofstream &file)
     for(Column column: vecColumns)
     {
         if(column.key.size()){
-            file << (virgula?" AND \" << ":"") << column.var << "='\"<<oldObj.get" << table2className(column.var) << "()<<'\\''";
+            if(virgula)
+                file << "<<\" AND ";
+            file << column.nameDb << "='\"<<oldObj.get" << table2className(column.var)<<"()"<<getIdFuncRelation(column)<<"<<'\\''";
             virgula=true;
         }
     }
@@ -247,11 +264,15 @@ void RepositoryCreator::insertImplementationRemove(ofstream &file)
     for(Column column: vecColumns)
     {
         if(column.key.size()){
-            file << (virgula?" AND \" << ":"") << column.var << "='\"<<" << entityLower << ".get" << table2className(column.var) << "()<<'\\''";
+            string asColumn = entity+'_'+column.var;
+            if(virgula)
+                file << " AND ";
+            file << column.nameDb << "=:"<<asColumn;
             virgula=true;
         }
     }
-    file << ";\n}\n\n";
+    file << "\", use("<<entityLower<<");\n";
+    file << "}\n\n";
 }
 
 void RepositoryCreator::insertDeclarationConstructor(ofstream &file)
@@ -264,34 +285,50 @@ void RepositoryCreator::insertImplementationConstructor(ofstream &file)
     file << className << "::" << className<<"(soci::session& db) : dataBase(db)\n{\n}\n\n";
 }
 
-void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& table, bool virgula)
+void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& table, set<string>& relationsInserted, bool virgula)
 {
     string entity = table2className(table);
     vector<Column> colunas = getColumns(getColumnsDB(table, dataBase, tableSchema));
+
     for(Column& coluna: colunas)
     {
-        string colunaNome = table+'.'+coluna.var ;
-        if(coluna.relation.size()){
-            colunaNome+="_id";
-            if(table != coluna.relation)
-                insertColumnsToSelectOfRelation(file, coluna.relation, true);
-        }
+        string colunaNome = table+'.'+coluna.nameDb;
         file << (virgula?", ":" ") << colunaNome << " as " << entity<<'_'<<coluna.var;
+
+        if(coluna.relation.size()){
+            if(table!=coluna.relation && relationsInserted.find(coluna.relation)==relationsInserted.end()){
+                insertColumnsToSelectOfRelation(file, coluna.relation, relationsInserted, true);
+                relationsInserted.insert(coluna.relation);
+            }
+        }
 
         virgula=true;
     }
 }
 
-void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table)
+void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table, set<string>& relationsInserted)
 {
     vector<Column> vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
     for(int i=0; i<vecColumns.size(); i++){
         if(vecColumns[i].relation.size()){
-            if(table != vecColumns[i].relation){
-                file << " \\\n\tLEFT OUTER JOIN "<<vecColumns[i].relation<<" ON("<<table<<'.'<<vecColumns[i].relation<<"_id="<<vecColumns[i].relation<<".id)";
-                insertLeftJoinsOfRelation(file, vecColumns[i].relation);
+            if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
+                file << " \"\n\t\"LEFT OUTER JOIN "<<vecColumns[i].relation<<" ON("<<table<<'.'<<vecColumns[i].relation<<"_id="<<vecColumns[i].relation<<".id)";
+                insertLeftJoinsOfRelation(file, vecColumns[i].relation, relationsInserted);
+                relationsInserted.insert(vecColumns[i].relation);
             }
         }
     }
+}
+
+string RepositoryCreator::getIdFuncRelation(Column &column)
+{
+    string func;
+    size_t pos = column.nameDb.find('_');
+    if(column.relation.size() && pos!=string::npos)
+    {
+        func = column.nameDb.substr(pos+1);
+        func = "->get"+table2className(func)+"()";
+    }
+    return func;
 }
 
