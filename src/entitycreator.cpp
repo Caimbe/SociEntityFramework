@@ -95,8 +95,8 @@ void EntityCreator::insertDeclarationsGetsAndSets(ofstream &file)
     for(Column column: vecColumns)
     {
         column.var[0] = toupper(column.var[0]);
-        file << '\t' << column.type << " " << "get" << column.var << "() const;" << endl;
-        file << '\t' << "void " << "set" << column.var << "("<<column.type<<" value);" << endl;
+        file << '\t' << column.type << " " << "get" << table2className( column.var ) << "() const;" << endl;
+        file << '\t' << "void " << "set" << table2className(column.var) << "("<<column.type<<" value);" << endl;
         /*if(column.key.size()){
             for(auto itE=vecEntity.begin(); itE!=vecEntity.end(); itE++){
                 if(itE->name==column.relation)
@@ -151,9 +151,9 @@ void EntityCreator::insertImplementationGetsAndSets(ofstream &file)
     {
         string varLow = column.var;
         column.var[0] = toupper(column.var[0]);
-        file << column.type << ' ' << className << "::" << "get" << column.var << "() const" << endl;
+        file << column.type << ' ' << className << "::" << "get" << table2className(column.var) << "() const" << endl;
         file << "{\n\treturn " << varLow << ";\n}\n";
-        file << "void " << className << "::" << "set" << column.var << "("<<column.type<<" value)" << endl;
+        file << "void " << className << "::" << "set" << table2className(column.var) << "("<<column.type<<" value)" << endl;
         file << "{\n\t" << varLow << " = value;\n}\n";
     }
 }

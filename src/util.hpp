@@ -48,14 +48,20 @@ inline string table2className(string& table)
 
 inline string typeDb2Cpp(string typeDB)
 {
-    if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob" || typeDB=="longtext")
+    if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob" || typeDB == "longblob" || typeDB == "mediumblob" || typeDB=="longtext" || typeDB=="mediumtext" || typeDB=="set")
         return "string";
-    else if(typeDB == "timestamp")
+    else if(typeDB == "timestamp" || typeDB == "datetime" || typeDB == "date")
         return "tm";
     else if(typeDB == "tinyint")
         return "bool";
     else if(typeDB == "decimal" || typeDB=="float")
         return "double";
+    else if(typeDB == "smallint")
+        return "short";
+    else if(typeDB == "bigint")
+        return "long long";
+    else if(typeDB == "enum")
+        return "int";
 
     return typeDB;
 }
@@ -103,6 +109,9 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
             tipo[0] = toupper(tipo[0]);
             tipo += "Ptr";
         }
+        if(var == "template" || var == "goto")
+            var+='_';
+        boost::algorithm::replace_all(var, "-", "_");
         vecColumns.push_back( {tipo, tipoDb, var, relation, key, nameDb} );
     }
     return vecColumns;

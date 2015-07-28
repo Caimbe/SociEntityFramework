@@ -60,10 +60,10 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         file << "\t\tif (v.get_indicator(\""<<asColumn<<"\") != i_null){\n";
         if(coluna.relation.size()){
             coluna.relation[0] = toupper(coluna.relation[0]);
-            file << "\t\t\tp.set"<<coluna.var<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.template get<"<<coluna.typeDb<<">(\""<<asColumn<<"\")) ) );\n";
-            file << "\t\t\ttype_conversion<"<<coluna.relation<<">::from_base(v, i_ok, *p.get"<<coluna.var<<"() );\n\t\t}\n";
+            file << "\t\t\tp.set"<<table2className(coluna.var)<<"( "<<coluna.type<<"( new "<<coluna.relation<<"(v.template get<"<<coluna.typeDb<<">(\""<<asColumn<<"\")) ) );\n";
+            file << "\t\t\ttype_conversion<"<<coluna.relation<<">::from_base(v, i_ok, *p.get"<<table2className(coluna.var)<<"() );\n\t\t}\n";
         }else
-            file << "\t\t\tp.set"<<coluna.var<<"( v.template get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
+            file << "\t\t\tp.set"<<table2className(coluna.var)<<"( v.template get<"<<coluna.type<<">(\""<<asColumn<<"\" ) );\n\t\t}\n";
     }
     file << "\t}\n";
     file << "\tstatic void to_base(const "<<entity<<" & p, values & v, indicator & ind)\n\t{\n";
@@ -72,8 +72,8 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
         string asColumn = entity+'_'+coluna.var;
         coluna.var[0] = toupper(coluna.var[0]);
         if(coluna.relation.size()){
-            file << "\t\tif( p.get"<<coluna.var<<"() )\n";
-            file << "\t\t\tv.set( \""<<asColumn<<"\", p.get"<<coluna.var<<"()->getId() );\n";
+            file << "\t\tif( p.get"<<table2className(coluna.var)<<"() )\n";
+            file << "\t\t\tv.set( \""<<asColumn<<"\", p.get"<<table2className(coluna.var)<<"()->getId() );\n";
             file << "\t\telse\n";
             file << "\t\t\tv.set( \""<<asColumn<<"\", NULL, i_null);\n";
         }else{
@@ -82,7 +82,7 @@ void RepositoryCreator::insertObjectRelationalMapping(ofstream &file)
                 cast = "(double)";
             else if(coluna.type == "bool")
                 cast = "(int)";
-            file << "\t\tv.set( \""<<asColumn<<"\", "<<cast<<"p.get"<<coluna.var<<"() );\n";
+            file << "\t\tv.set( \""<<asColumn<<"\", "<<cast<<"p.get"<<table2className(coluna.var)<<"() );\n";
         }
     }
     file << "\t\tind = i_ok;\n\t}\n};\n}";
@@ -95,7 +95,8 @@ void RepositoryCreator::createCpp()
     ofstream file(DIR_REPOSITORY+fileName+".cpp");
     cout << "creating cpp: " << className << endl;
 
-    file << "#include \"" << boost::algorithm::to_lower_copy( className ) << ".h\"\n\n";
+    file << "#include \"" << boost::algorithm::to_lower_copy( className ) << ".h\"\n"
+            "#include \"util.hpp\"\n";
 
     insertImplementationConstructor(file);
     insertImplementationSelect(file);
@@ -212,7 +213,7 @@ void RepositoryCreator::insertImplementationUpdate2(ofstream &file)
         if(column.key.size()){
             if(virgula)
                 file << "<<\" AND ";
-            file << column.nameDb << "='\"<<oldObj.get" << table2className(column.var)<<"()"<<getIdFuncRelation(column)<<"<<'\\''";
+            file << column.nameDb << "='\"<<"<<(column.type=="tm"?"to_string(":"")<<"oldObj.get" << table2className(column.var)<<"()"<<(column.type=="tm"?")":"")<<getIdFuncRelation(column)<<"<<'\\''";
             virgula=true;
         }
     }
