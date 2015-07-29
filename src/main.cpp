@@ -13,17 +13,17 @@ enum ExitReturn{
     ERROR_UNHANDLED_EXCEPTION=4,
 };
 
-ExitReturn process_command_line(int argc, char** argv, string& urlDataBase);
+ExitReturn process_command_line(int argc, char** argv, Options& opt);
 
 int main(int argc, char** argv)
 {
     try{
-        string urlDataBase;
-        ExitReturn result = process_command_line(argc, argv, urlDataBase);
+        Options opt;
+        ExitReturn result = process_command_line(argc, argv, opt);
         if (result != ExitReturn::SUCCESS_IN_COMMAND_LINE)
             return ExitReturn::ERROR_IN_COMMAND_LINE;
 
-        ProcessDataBase processaDataBase(urlDataBase);
+        ProcessDataBase processaDataBase(opt);
         processaDataBase.start();
     }catch(exception& ex){
         std::cerr << "Unhandled Exception reached the top of main: "
@@ -34,13 +34,14 @@ int main(int argc, char** argv)
     return ExitReturn::SUCCESS;
 }
 
-ExitReturn process_command_line(int argc, char** argv, string& urlDataBase)
+ExitReturn process_command_line(int argc, char** argv, Options& opt)
 {
     namespace po = boost::program_options;
     po::options_description desc("Options");
     desc.add_options()
-        ("help,h", "Print help messages")
-        ("connectdb,c", po::value<string>(), "string for conection in database ex.: \"mysql://host=localhost db=mydatabase user=root password=123456\"");
+            ("help,h", "Print help messages")
+            ("connectdb,c", po::value<string>(), "string for conection in database ex.: \"mysql://host=localhost db=mydatabase user=root password=123456\"")
+            ("sufix-repository,s", po::value<string>(), "sufix of termination Repository name, ex.: -s Postfix - The repository name is: RepositoryPostfix.");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc),vm); // can throw
@@ -53,7 +54,11 @@ ExitReturn process_command_line(int argc, char** argv, string& urlDataBase)
     }
     if (vm.count("connectdb"))
     {
-        urlDataBase = vm["connectdb"].as<string>();
+        opt.urlDataBase = vm["connectdb"].as<string>();
+    }
+    if (vm.count("sufix-repository"))
+    {
+        opt.sufixRepository = vm["sufix-repository"].as<string>();
     }
     return ExitReturn::SUCCESS_IN_COMMAND_LINE;
 }

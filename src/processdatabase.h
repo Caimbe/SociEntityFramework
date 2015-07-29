@@ -7,12 +7,19 @@
 using namespace std;
 using namespace soci;
 
+struct Options
+{
+    string urlDataBase;
+    string sufixRepository;
+};
+
 class ProcessDataBase
 {
     string tableSchema;
     soci::session dataBase;
+    Options options;
 public:
-    ProcessDataBase(const string& urlDataBase);
+    ProcessDataBase(const Options& opt);
     void start();
     void createInterfaceHeader(vector<string> vecTables);
     void createInterfaceCpp(vector<string> vecTables);

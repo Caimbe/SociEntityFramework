@@ -14,7 +14,7 @@ EntityCreator::EntityCreator(soci::session& db, string table, string tableSchema
     this->vecEntity = vecEntity;
     className = table2className(table);
 
-    vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
+    vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema), dataBase, table);
 
     boost::filesystem::create_directories(DIR_ENTITY);
     createHeader();

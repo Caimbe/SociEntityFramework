@@ -8,6 +8,7 @@
 #include <boost/algorithm/string.hpp>
 #include "entity.h"
 using namespace std;
+using namespace soci;
 
 #define INCLUDES_DEFAULTS "#include <iostream>\n#include <memory>\n#include <vector>\n"
 
@@ -46,8 +47,33 @@ inline string table2className(string& table)
     return className;
 }
 
-inline string typeDb2Cpp(string typeDB)
+inline string typeDb2Cpp(const soci::column_properties &props)
 {
+    string tipo = "int";
+    switch(props.get_data_type())
+    {
+        case soci::dt_string:
+            tipo = "std::string";
+            break;
+        case dt_double:
+            tipo = "double";
+            break;
+        case dt_integer:
+            tipo = "int";
+            break;
+        case soci::dt_unsigned_long_long:
+            tipo = "unsigned long long";
+            break;
+        case dt_long_long:
+            tipo = "long long";
+            break;
+        case dt_date:
+            tipo = "tm";
+            break;
+    }
+
+    return tipo;
+    /*
     if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob" || typeDB == "longblob" || typeDB == "mediumblob" || typeDB=="longtext" || typeDB=="mediumtext" || typeDB=="set")
         return "string";
     else if(typeDB == "timestamp" || typeDB == "datetime" || typeDB == "date")
@@ -63,7 +89,7 @@ inline string typeDb2Cpp(string typeDB)
     else if(typeDB == "enum")
         return "int";
 
-    return typeDB;
+    return typeDB;*/
 }
 
 
@@ -81,7 +107,7 @@ inline soci::rowset<soci::row> getColumnsDB(string &table, soci::session& dataBa
     return columns;
 }
 
-inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
+inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb, soci::session& dataBase, string& tableSchema)
 {
     vector<Column> vecColumns;
     string tipoDb;
@@ -91,10 +117,15 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
     string relation;
     string key;
     size_t fid;
+    row reg;
+    dataBase << "select * from "<<tableSchema, into(reg);
+
+    int i=0;
     for(soci::row& column: columnsDb)
     {
         tipoDb =  column.get<string>(0);
-        tipo = typeDb2Cpp( tipoDb );
+        const column_properties & props = reg.get_properties(i++);
+        tipo = typeDb2Cpp( props );
         var = column.get<string>(1);
         nameDb = var;
         relation = column.get<string>(2, "");        
@@ -112,6 +143,7 @@ inline vector<Column> getColumns(soci::rowset<soci::row> columnsDb)
         if(var == "template" || var == "goto")
             var+='_';
         boost::algorithm::replace_all(var, "-", "_");
+
         vecColumns.push_back( {tipo, tipoDb, var, relation, key, nameDb} );
     }
     return vecColumns;

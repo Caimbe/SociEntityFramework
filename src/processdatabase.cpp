@@ -8,13 +8,13 @@
 #include "repositorycreator.h"
 #include "entity.h"
 
-ProcessDataBase::ProcessDataBase(const string& urlDataBase)
+ProcessDataBase::ProcessDataBase(const Options& opt)
 {
-    size_t ini = urlDataBase.find("db=")+3;
-    size_t fim = urlDataBase.find(" ", ini);
-    tableSchema = urlDataBase.substr(ini, fim-ini);
-    dataBase.open(urlDataBase);    
-
+    size_t ini = opt.urlDataBase.find("db=")+3;
+    size_t fim = opt.urlDataBase.find(" ", ini);
+    tableSchema = opt.urlDataBase.substr(ini, fim-ini);
+    dataBase.open(opt.urlDataBase);
+    options = opt;
 }
 
 void ProcessDataBase::start()
@@ -26,14 +26,15 @@ void ProcessDataBase::start()
     {
         Entity entity;
         entity.name = table;
-        entity.vecColumn = getColumns( getColumnsDB(table, dataBase, tableSchema) );
+        auto rowset = getColumnsDB(table, dataBase, tableSchema);
+        entity.vecColumn = getColumns( rowset, dataBase, table );
         vecEntity.push_back(entity);
     }
     for(Entity& entity: vecEntity)
     {
         cout << "processing table: " << entity.name << endl;
         EntityCreator(dataBase, entity.name, tableSchema, vecEntity);
-        RepositoryCreator(entity.name, tableSchema, getColumns( getColumnsDB(entity.name, dataBase, tableSchema) ), dataBase);
+        RepositoryCreator(entity.name, tableSchema, getColumns( getColumnsDB(entity.name, dataBase, tableSchema), dataBase, entity.name ), dataBase);
         vecTables.push_back(entity.name);
     }
     createInterfaceHeader(vecTables);
@@ -42,21 +43,21 @@ void ProcessDataBase::start()
 
 void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
 {
-    ofstream file(DIR_REPOSITORY"repository.h");
-    file << "#ifndef REPOSITORY_H\n#define REPOSITORY_H\n";
+    ofstream file(DIR_REPOSITORY"repository"+options.sufixRepository+".h");
+    file << "#ifndef REPOSITORY"+options.sufixRepository+"_H\n#define REPOSITORY"+options.sufixRepository+"_H\n";
 
     file << "#include <soci/soci.h>\n#include <typeinfo>\n";
     for(string table: vecTables)
     {
         file << "#include \""<<boost::algorithm::to_lower_copy(table2className(table))<<"repository.h\"\n";
     }
-    file << "\nclass Repository\n{\n\tsoci::session dataBase;\n";
+    file << "\nclass Repository"+options.sufixRepository+"\n{\n\tsoci::session dataBase;\n";
     for(string table: vecTables)
     {
         file << '\t'<<table2className(table)<<"Repository "<<boost::algorithm::to_lower_copy(table2className(table))<<";\n";
     }
-    file << "public:\n\tRepository();\n\n";
-    file << "\tvoid open(std::string& connectStringDataBase);\n";
+    file << "public:\n\tRepository"+options.sufixRepository+"();\n\n";
+    file << "\tvoid open(const std::string& connectStringDataBase);\n";
     file << "\ttemplate<class R, class T> R select(const T& obj);\n";
     file << "\ttemplate<class T> T select(const string& where=\"\");\n";
     file << "\ttemplate<class T> int insert(const T& obj);\n";
@@ -64,13 +65,13 @@ void ProcessDataBase::createInterfaceHeader(vector<string> vecTables)
     file << "\ttemplate<class T> void update(const T& oldObj, const T& newObj);\n";
     file << "\ttemplate<class T> void remove(const T& obj);\n";
     file << "\n};\n\n";
-    file << "#endif // REPOSITORY_H\n";
+    file << "#endif // REPOSITORY"+options.sufixRepository+"_H\n";
 }
 
 void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
 {
-    ofstream file(DIR_REPOSITORY"repository.cpp");
-    file << "#include \"repository.h\"\nRepository::Repository() :";
+    ofstream file(DIR_REPOSITORY"repository"+options.sufixRepository+".cpp");
+    file << "#include \"repository"+options.sufixRepository+".h\"\nRepository"+options.sufixRepository+"::Repository"+options.sufixRepository+"() :";
     bool first=true;
     for(string table: vecTables)
     {
@@ -82,7 +83,7 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
     }
     file <<"\n{}\n";
 
-    file << "void Repository::open(std::string& connectStringDataBase)\n{\n"
+    file << "void Repository"+options.sufixRepository+"::open(const std::string& connectStringDataBase)\n{\n"
             "\tif(connectStringDataBase.size())\n"
             "\t\tdataBase.open(connectStringDataBase);\n"
             "\telse\n"
@@ -91,22 +92,22 @@ void ProcessDataBase::createInterfaceCpp(vector<string> vecTables)
 
     for(string table: vecTables)
     {
-        file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository::select(const "<<table2className(table)<<"& obj)\n{\n\t";
+        file << "\ntemplate<> "<<table2className(table)<<"Ptr Repository"+options.sufixRepository+"::select(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(obj);\n}\n";
 
-        file << "template<> "<<table2className(table)<<"List Repository::select(const string& where)\n{\n\t";
+        file << "template<> "<<table2className(table)<<"List Repository"+options.sufixRepository+"::select(const string& where)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".select(where);\n}\n";
 
-        file << "template<> int Repository::insert(const "<<table2className(table)<<"& obj)\n{\n\t";
+        file << "template<> int Repository"+options.sufixRepository+"::insert(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<"return "<<boost::algorithm::to_lower_copy(table2className(table)) << ".insert(obj);\n}\n";
 
-        file << "template<> void Repository::update(const "<<table2className(table)<<"& obj)\n{\n\t";
+        file << "template<> void Repository"+options.sufixRepository+"::update(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<boost::algorithm::to_lower_copy(table2className(table)) << ".update(obj);\n}\n";
 
-        file << "template<> void Repository::update(const "<<table2className(table)<<"& oldObj, const "<<table2className(table)<<"& newObj)\n{\n\t";
+        file << "template<> void Repository"+options.sufixRepository+"::update(const "<<table2className(table)<<"& oldObj, const "<<table2className(table)<<"& newObj)\n{\n\t";
         file <<boost::algorithm::to_lower_copy(table2className(table)) << ".update(oldObj, newObj);\n}\n";
 
-        file << "template<> void Repository::remove(const "<<table2className(table)<<"& obj)\n{\n\t";
+        file << "template<> void Repository"+options.sufixRepository+"::remove(const "<<table2className(table)<<"& obj)\n{\n\t";
         file <<boost::algorithm::to_lower_copy(table2className(table)) << ".remove(obj);\n}\n";
     }
 }

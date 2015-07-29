@@ -212,12 +212,12 @@ void RepositoryCreator::insertImplementationUpdate2(ofstream &file)
     {
         if(column.key.size()){
             if(virgula)
-                file << "<<\" AND ";
-            file << column.nameDb << "='\"<<"<<(column.type=="tm"?"to_string(":"")<<"oldObj.get" << table2className(column.var)<<"()"<<(column.type=="tm"?")":"")<<getIdFuncRelation(column)<<"<<'\\''";
+                file << "' AND ";
+            file << column.nameDb << "='\"<<"<<(column.type=="tm"?"to_string(":"")<<"oldObj.get" << table2className(column.var)<<"()"<<(column.type=="tm"?")":"")<<getIdFuncRelation(column)<<"<<\"\\'";
             virgula=true;
         }
     }
-    file << ", use(newObj);\n";
+    file << "\", use(newObj);\n";
     file << "}\n\n";
 }
 
@@ -227,15 +227,9 @@ void RepositoryCreator::insertImplementationInsert(ofstream &file)
     file << "\tdataBase << \"insert into "<<table<<'(';
     bool first=true;
     for(int i=0; i<vecColumns.size(); i++){
-        string colunaNome = vecColumns[i].var ;
-        if(vecColumns[i].relation.size())
-            colunaNome+="_id";
-
-        if(vecColumns[i].var == "id")
-            continue;
         if(!first)
             file << ", ";
-        file << colunaNome;
+        file << vecColumns[i].nameDb;
 
         first=false;
     }
@@ -243,8 +237,6 @@ void RepositoryCreator::insertImplementationInsert(ofstream &file)
     first=true;
     for(int i=0; i<vecColumns.size(); i++)
     {
-        if(vecColumns[i].var == "id")
-            continue;
         string asColumn = entity+'_'+vecColumns[i].var;
         if(first)
             file << ':'<<asColumn;
@@ -289,7 +281,7 @@ void RepositoryCreator::insertImplementationConstructor(ofstream &file)
 void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& table, set<string>& relationsInserted, bool virgula)
 {
     string entity = table2className(table);
-    vector<Column> colunas = getColumns(getColumnsDB(table, dataBase, tableSchema));
+    vector<Column> colunas = getColumns(getColumnsDB(table, dataBase, tableSchema), dataBase, table);
 
     for(Column& coluna: colunas)
     {
@@ -309,7 +301,7 @@ void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& 
 
 void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table, set<string>& relationsInserted)
 {
-    vector<Column> vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema));
+    vector<Column> vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema), dataBase, table);
     for(int i=0; i<vecColumns.size(); i++){
         if(vecColumns[i].relation.size()){
             if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
@@ -330,6 +322,7 @@ string RepositoryCreator::getIdFuncRelation(Column &column)
         func = column.nameDb.substr(pos+1);
         func = "->get"+table2className(func)+"()";
     }
+
     return func;
 }
 
