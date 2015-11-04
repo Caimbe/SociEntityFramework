@@ -20,11 +20,10 @@ int main(int argc, char** argv)
     try{
         Options opt;
         ExitReturn result = process_command_line(argc, argv, opt);
-        if (result != ExitReturn::SUCCESS_IN_COMMAND_LINE)
-            return ExitReturn::ERROR_IN_COMMAND_LINE;
-
-        ProcessDataBase processaDataBase(opt);
-        processaDataBase.start();
+        if (result == ExitReturn::SUCCESS_IN_COMMAND_LINE){
+            ProcessDataBase processaDataBase(opt);
+            processaDataBase.start();
+        }
     }catch(exception& ex){
         std::cerr << "Unhandled Exception reached the top of main: "
                   << ex.what() << ", application will now exit" << std::endl;
@@ -40,7 +39,7 @@ ExitReturn process_command_line(int argc, char** argv, Options& opt)
     po::options_description desc("Options");
     desc.add_options()
             ("help,h", "Print help messages")
-            ("connectdb,c", po::value<string>(), "string for conection in database ex.: \"mysql://host=localhost db=mydatabase user=root password=123456\"")
+            ("connectdb,c", po::value<string>(), "string REQUERID for conection in database ex.: \"mysql://host=localhost db=mydatabase user=root password=123456\"")
             ("sufix-repository,s", po::value<string>(), "sufix of termination Repository name, ex.: -s Postfix - The repository name is: RepositoryPostfix.");
 
     po::variables_map vm;
@@ -55,6 +54,10 @@ ExitReturn process_command_line(int argc, char** argv, Options& opt)
     if (vm.count("connectdb"))
     {
         opt.urlDataBase = vm["connectdb"].as<string>();
+    }
+    else
+    {
+        return ExitReturn::ERROR_IN_COMMAND_LINE;
     }
     if (vm.count("sufix-repository"))
     {

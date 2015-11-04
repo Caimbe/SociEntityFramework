@@ -73,23 +73,6 @@ inline string typeDb2Cpp(const soci::column_properties &props)
     }
 
     return tipo;
-    /*
-    if(typeDB == "varchar" || typeDB == "text" || typeDB == "tinytext" || typeDB == "blob" || typeDB == "longblob" || typeDB == "mediumblob" || typeDB=="longtext" || typeDB=="mediumtext" || typeDB=="set")
-        return "string";
-    else if(typeDB == "timestamp" || typeDB == "datetime" || typeDB == "date")
-        return "tm";
-    else if(typeDB == "tinyint")
-        return "bool";
-    else if(typeDB == "decimal" || typeDB=="float")
-        return "double";
-    else if(typeDB == "smallint")
-        return "short";
-    else if(typeDB == "bigint")
-        return "long long";
-    else if(typeDB == "enum")
-        return "int";
-
-    return typeDB;*/
 }
 
 
