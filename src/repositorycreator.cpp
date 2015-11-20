@@ -2,6 +2,7 @@
 #include "util.hpp"
 #include <set>
 #include <boost/filesystem.hpp>
+#include <iostream>
 
 RepositoryCreator::RepositoryCreator(string &table, string &tableSchema, vector<Column> vecColumns, soci::session& db) : dataBase(db)
 {
@@ -306,6 +307,13 @@ void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table, 
         if(vecColumns[i].relation.size()){
             if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
                 file << " \"\n\t\"LEFT OUTER JOIN "<<vecColumns[i].relation<<" ON("<<table<<'.'<<vecColumns[i].relation<<"_id="<<vecColumns[i].relation<<".id)";
+                relationsInserted.insert(vecColumns[i].relation);
+            }
+        }
+    }
+    for(int i=0; i<vecColumns.size(); i++){
+        if(vecColumns[i].relation.size()){
+            if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
                 insertLeftJoinsOfRelation(file, vecColumns[i].relation, relationsInserted);
                 relationsInserted.insert(vecColumns[i].relation);
             }
