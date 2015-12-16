@@ -4,6 +4,7 @@
 #include "soci/soci.h"
 #include <set>
 #include "util.hpp"
+#include <queue>
 
 #define DIR_REPOSITORY "repository/"
 
@@ -30,6 +31,7 @@ public:
     void insertImplementationConstructor(ofstream& file);
     void insertColumnsToSelectOfRelation(ofstream& file, string& table, set<string>& relationsInserted, bool virgula=false);
     void insertLeftJoinsOfRelation(ofstream& file, string table, set<string>& relationsInserted);
+    void getLeftJoinsOfRelation(string table, set<string>& relationsInserted, vector<string>& vecIners);
     string getIdFuncRelation(Column& column);
 };
 

@@ -96,8 +96,7 @@ void RepositoryCreator::createCpp()
     ofstream file(DIR_REPOSITORY+fileName+".cpp");
     cout << "creating cpp: " << className << endl;
 
-    file << "#include \"" << boost::algorithm::to_lower_copy( className ) << ".h\"\n"
-            "#include \"util.hpp\"\n";
+    file << "#include \"" << boost::algorithm::to_lower_copy( className ) << ".h\"\n";
 
     insertImplementationConstructor(file);
     insertImplementationSelect(file);
@@ -176,7 +175,7 @@ void RepositoryCreator::insertImplementationUpdate(ofstream &file)
     bool virgula = false;
     for(Column column: vecColumns)
     {
-        if(column.key.size()){
+        if(column.key == "PRI"){
             string asColumn = entity+'_'+column.var;
             if(virgula)
                 file << " AND ";
@@ -211,7 +210,7 @@ void RepositoryCreator::insertImplementationUpdate2(ofstream &file)
     bool virgula = false;
     for(Column column: vecColumns)
     {
-        if(column.key.size()){
+        if(column.key == "PRI"){
             if(virgula)
                 file << "' AND ";
             file << column.nameDb << "='\"<<"<<(column.type=="tm"?"to_string(":"")<<"oldObj.get" << table2className(column.var)<<"()"<<(column.type=="tm"?")":"")<<getIdFuncRelation(column)<<"<<\"\\'";
@@ -300,24 +299,38 @@ void RepositoryCreator::insertColumnsToSelectOfRelation(ofstream &file, string& 
     }
 }
 
-void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table, set<string>& relationsInserted)
+void RepositoryCreator::getLeftJoinsOfRelation(string table, set<string> &relationsInserted, vector<string> &vecIners)
 {
     vector<Column> vecColumns = getColumns(getColumnsDB(table, dataBase, tableSchema), dataBase, table);
     for(int i=0; i<vecColumns.size(); i++){
         if(vecColumns[i].relation.size()){
             if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
-                file << " \"\n\t\"LEFT OUTER JOIN "<<vecColumns[i].relation<<" ON("<<table<<'.'<<vecColumns[i].relation<<"_id="<<vecColumns[i].relation<<".id)";
+                getLeftJoinsOfRelation(vecColumns[i].relation, relationsInserted, vecIners);
+    //            relationsInserted.insert(vecColumns[i].relation);
+            }
+        }
+    }
+
+
+    for(int i=0; i<vecColumns.size(); i++){
+        if(vecColumns[i].relation.size()){
+            if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
+                vecIners.push_back(" \"\n\t\"LEFT OUTER JOIN "+vecColumns[i].relation+" ON("+table+'.'+vecColumns[i].relation+"_id="+vecColumns[i].relation+".id)");
                 relationsInserted.insert(vecColumns[i].relation);
             }
         }
     }
-    for(int i=0; i<vecColumns.size(); i++){
-        if(vecColumns[i].relation.size()){
-            if(table != vecColumns[i].relation && relationsInserted.find(vecColumns[i].relation)==relationsInserted.end()){
-                insertLeftJoinsOfRelation(file, vecColumns[i].relation, relationsInserted);
-                relationsInserted.insert(vecColumns[i].relation);
-            }
-        }
+}
+
+void RepositoryCreator::insertLeftJoinsOfRelation(ofstream &file, string table, set<string>& relationsInserted)
+{
+    vector<string> vecIners;
+    getLeftJoinsOfRelation(table, relationsInserted, vecIners);
+
+
+    while(vecIners.size()){
+        file << vecIners.back();
+        vecIners.pop_back();
     }
 }
 
